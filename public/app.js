@@ -1,0 +1,17 @@
+const apps=[["case","CASEFILE","▣","case"],["messages","Messages","●","msg"],["photos","Photos","✦","pic"],["notes","Notes","▤","notei"],["files","Files","□","file"],["settings","Settings","⚙","set"]];
+const $=id=>document.getElementById(id);
+let profile=(()=>{try{return JSON.parse(localStorage.getItem("offline-profile"))||{}}catch{return{}}})();
+function icon(a){return '<button class="icon" data-open="'+a[0]+'"><span class="ibox '+a[3]+'">'+a[2]+'</span><span>'+a[1]+'</span></button>'}
+$("appGrid").innerHTML=apps.map(icon).join("");$("dock").innerHTML=[apps[1],apps[2],apps[0],apps[5]].map(icon).join("");
+document.querySelectorAll("[data-open]").forEach(x=>x.onclick=()=>openView(x.dataset.open));
+document.querySelectorAll("[data-home]").forEach(x=>x.onclick=()=>openView("home"));
+function openView(name){document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));$(name==="home"?"homeView":name+"View").classList.add("active");if(name==="settings")fill();if(name==="case"&&!$("caseSummary").dataset.loaded)generate()}
+function clock(){const d=new Date(),t=d.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});$("statusTime").textContent=t;$("lockTime").textContent=t;$("lockDate").textContent=d.toLocaleDateString([],{weekday:"long",month:"long",day:"numeric"});$("homeDate").textContent=d.toLocaleDateString([],{weekday:"short",month:"short",day:"numeric"})}clock();setInterval(clock,1000);
+$("unlockBtn").onclick=()=>openView("home");$("lockNotification").onclick=()=>openView("messages");
+function fill(){$("alias").value=profile.alias||"";$("vibe").value=profile.vibe||"cinematic mystery";$("setting").value=profile.setting||""}
+$("saveProfile").onclick=()=>{profile={alias:$("alias").value.trim(),vibe:$("vibe").value,setting:$("setting").value.trim()};localStorage.setItem("offline-profile",JSON.stringify(profile));toast("Profile saved")};
+function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
+function render(c){$("caseTitle").textContent=c.title;$("caseSubtitle").textContent=c.subtitle;$("caseLocation").textContent=c.location;$("caseTime").textContent=c.time;$("caseMissing").textContent=c.missing;$("caseSummary").textContent=c.summary;$("caseSummary").dataset.loaded="1";$("suspects").innerHTML=(c.suspects||[]).map(s=>'<div class="suspect"><b>'+esc(s.name)+'</b><span>'+esc(s.role)+'</span><p>'+esc(s.clue)+'</p></div>').join("");$("evidence").innerHTML=(c.evidence||[]).map(x=>'<div class="evidence">'+esc(x)+'</div>').join("");$("timeline").innerHTML=(c.timeline||[]).map(x=>'<div class="timeline">'+esc(x)+'</div>').join("");$("caseTwist").textContent=c.twist||"No anomaly recorded."}
+async function generate(){const b=$("newCaseBtn");b.textContent="GENERATING…";b.disabled=true;try{const r=await fetch("/api/generate-case",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({profile})});const d=await r.json();if(!d.case)throw 0;render(d.case);toast(d.source==="openrouter"?"AI CASE LOADED":"LOCAL CASE LOADED")}catch{toast("Could not load case")}finally{b.textContent="GENERATE NEW CASE";b.disabled=false}}
+function toast(t){const x=document.createElement("div");x.textContent=t;x.style.cssText="position:fixed;left:50%;bottom:24px;transform:translateX(-50%);padding:10px 15px;border-radius:999px;background:#f5f5f7;color:#111;font-size:11px;font-weight:700;z-index:9999";document.body.appendChild(x);setTimeout(()=>x.remove(),1600)}
+$("newCaseBtn").onclick=generate;
